@@ -7,11 +7,12 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <pthread.h>
+#include <stdint.h>
 
 // Closures
 
 typedef enum {
-    CON, INT, BIGINT, FLOAT, STRING, UNIT, PTR, FWD
+    CON, INT, BIGINT, FLOAT, STRING, BLOB, UNIT, PTR, FWD
 } ClosureType;
 
 typedef struct Closure *VAL;
@@ -31,6 +32,7 @@ typedef struct Closure {
         double f;
         char* str;
         void* ptr;
+	void* blob;
     } info;
 } Closure;
 

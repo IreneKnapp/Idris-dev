@@ -9,6 +9,7 @@ import Data.Char
 import Data.List
 import qualified Data.Binary as B
 import Data.Binary hiding (get, put)
+import qualified Data.ByteString as BS
 
 import Util.Pretty hiding (Str)
 
@@ -261,6 +262,9 @@ data Const = I Int | BI Integer | Fl Double | Ch Char | Str String
 
            | W8 Word8 | W16 Word16
            | W8Type   | W16Type   
+
+	   | Blob BS.ByteString
+	   | BlobType
 
            | PtrType | VoidType | Forgot
   deriving (Eq, Ord)

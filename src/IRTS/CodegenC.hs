@@ -9,6 +9,7 @@ import Core.TT
 import Paths_idris
 import Util.System
 
+import qualified Data.ByteString as BS
 import Data.Char
 import System.Process
 import System.Exit
@@ -225,6 +226,7 @@ bcc i (ERROR str) = indent i ++ "fprintf(stderr, " ++ show str ++ "); assert(0);
 c_irts FInt l x = l ++ "MKINT((i_int)(" ++ x ++ "))"
 c_irts FChar l x = l ++ "MKINT((i_int)(" ++ x ++ "))"
 c_irts FString l x = l ++ "MKSTR(vm, " ++ x ++ ")"
+c_irts FBlob l x = l ++ x
 c_irts FUnit l x = x
 c_irts FPtr l x = l ++ "MKPTR(vm, " ++ x ++ ")"
 c_irts FDouble l x = l ++ "MKFLOAT(vm, " ++ x ++ ")"
@@ -233,6 +235,7 @@ c_irts FAny l x = l ++ x
 irts_c FInt x = "GETINT(" ++ x ++ ")"
 irts_c FChar x = "GETINT(" ++ x ++ ")"
 irts_c FString x = "GETSTR(" ++ x ++ ")"
+irts_c FBlob x = x
 irts_c FUnit x = x
 irts_c FPtr x = "GETPTR(" ++ x ++ ")"
 irts_c FDouble x = "GETFLOAT(" ++ x ++ ")"
@@ -318,6 +321,20 @@ doOp v LStrRev [x] = v ++ "idris_strRev(vm, " ++ creg x ++ ")"
 doOp v LStdIn [] = v ++ "MKPTR(vm, stdin)"
 doOp v LStdOut [] = v ++ "MKPTR(vm, stdout)"
 doOp v LStdErr [] = v ++ "MKPTR(vm, stderr)"
+
+doOp v LEmptyBlob [] = v ++ "idris_emptyBlob(vm)"
+doOp v LBlobLength [x] = v ++ "idris_blobLength(vm, " ++ creg x ++ ")"
+doOp v LBlobGetByte [x, y] =
+  v ++ "idris_blobGetByte(vm, " ++ creg x ++ "," ++ creg y ++ ")"
+doOp v LBlobReplaceByte [x, y, z] =
+  v ++ "idris_blobReplaceByte(vm, " ++ creg x ++ "," ++ creg y ++ ","
+  ++ creg z ++ ")"
+doOp v LBlobGetDataPiece [x, y, z] =
+  v ++ "idris_blobGetDataPiece(vm, " ++ creg x ++ "," ++ creg y ++ ","
+  ++ creg z ++ ")"
+doOp v LBlobReplaceDataPiece [x, y, z, a] =
+  v ++ "idris_blobReplaceDataPiece(vm, " ++ creg x ++ "," ++ creg y ++ ","
+  ++ creg z ++ "," ++ creg a ++ ")"
 
 doOp v LFork [x] = v ++ "MKPTR(vm, vmThread(vm, " ++ cname (MN 0 "EVAL") ++ ", " ++ creg x ++ "))"
 doOp v LPar [x] = v ++ creg x -- "MKPTR(vm, vmThread(vm, " ++ cname (MN 0 "EVAL") ++ ", " ++ creg x ++ "))"

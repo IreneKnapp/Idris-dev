@@ -51,6 +51,11 @@ data PrimFn = LPlus | LMinus | LTimes | LDiv | LMod
             | LStrHead | LStrTail | LStrCons | LStrIndex | LStrRev
             | LStdIn | LStdOut | LStdErr
 
+	    | LEmptyBlob
+	    | LBlobLength
+	    | LBlobGetByte | LBlobReplaceByte
+	    | LBlobGetDataPiece | LBlobReplaceDataPiece
+
             | LFork  
             | LPar -- evaluate argument anywhere, possibly on another
                    -- core or another machine. 'id' is a valid implementation
@@ -63,7 +68,7 @@ data PrimFn = LPlus | LMinus | LTimes | LDiv | LMod
 data FLang = LANG_C
   deriving (Show, Eq)
 
-data FType = FInt | FChar | FString | FUnit | FPtr | FDouble | FAny
+data FType = FInt | FChar | FString | FBlob | FUnit | FPtr | FDouble | FAny
   deriving (Show, Eq)
 
 data LAlt = LConCase Int Name [Name] LExp

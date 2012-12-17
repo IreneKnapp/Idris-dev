@@ -11,6 +11,7 @@ import IRTS.Lang
 import Core.TT
 import Core.Evaluate
 import Data.Bits
+import qualified Data.ByteString as BS
 
 data Prim = Prim { p_name  :: Name,
                    p_type  :: Type,
@@ -197,6 +198,19 @@ primitives =
     (2, LStrIndex) partial,
    Prim (UN "prim__strRev") (ty [StrType] StrType) 1 (p_strRev)
     (1, LStrRev) total,
+   Prim (UN "prim__emptyBlob") (ty [] BlobType) 0
+    (p_emptyBlob) (0, LEmptyBlob) total,
+   Prim (UN "prim__blobLength") (ty [BlobType] BIType) 1
+    (p_blobLength) (1, LBlobLength) total,
+   Prim (UN "prim__blobGetByte") (ty [BlobType, BIType] W8Type) 2
+    (p_blobGetByte) (2, LBlobGetByte) partial,
+   Prim (UN "prim__blobReplaceByte") (ty [BlobType, BIType, W8Type] BlobType) 3
+    (p_blobReplaceByte) (3, LBlobReplaceByte) partial,
+   Prim (UN "prim__blobGetDataPiece") (ty [BlobType, BIType, BIType] W8Type) 3
+    (p_blobGetDataPiece) (3, LBlobGetDataPiece) partial,
+   Prim (UN "prim__blobReplaceDataPiece")
+    (ty [BlobType, BIType, BIType, BlobType] BlobType) 4
+    (p_blobReplaceDataPiece) (4, LBlobReplaceDataPiece) partial,
    Prim (UN "prim__readString") (ty [PtrType] StrType) 1 (p_cantreduce)
      (1, LReadStr) partial,
    Prim (UN "prim__vm") (ty [] PtrType) 0 (p_cantreduce)
@@ -322,6 +336,34 @@ p_strCons [VConstant (Ch x), VConstant (Str xs)] = Just $ VConstant (Str (x:xs))
 p_strCons _ = Nothing
 p_strRev [VConstant (Str xs)] = Just $ VConstant (Str (reverse xs))
 p_strRev _ = Nothing
+
+p_emptyBlob [] = Just $ VConstant (Blob BS.empty)
+p_emptyBlob _ = Nothing
+p_blobLength [VConstant (Blob blob)] =
+   Just $ VConstant (BI $ fromIntegral $ BS.length blob)
+p_blobLength _ = Nothing
+p_blobGetByte [VConstant (Blob blob), VConstant (BI offset)] =
+   Just $ VConstant (W8 $ BS.index blob $ fromIntegral offset)
+p_blobGetByte _ = Nothing
+p_blobReplaceByte [VConstant (Blob blob), VConstant (BI offset),
+		   VConstant (W8 byte)]
+   | fromIntegral offset < BS.length blob =
+      Just $ VConstant (W8 $ BS.index blob $ fromIntegral offset)
+p_blobReplaceByte _ = Nothing
+p_blobGetDataPiece [VConstant (Blob blob), VConstant (BI offset),
+		    VConstant (BI length)]
+   | fromIntegral offset + fromIntegral length <= BS.length blob =
+      Just $ VConstant (Blob $ BS.take (fromIntegral length)
+				       $ BS.drop (fromIntegral offset) blob)
+p_blobGetDataPiece _ = Nothing
+p_blobReplaceDataPiece [VConstant (Blob blob), VConstant (BI offset),
+			VConstant (BI length), VConstant (Blob piece)]
+   | fromIntegral offset + fromIntegral length <= BS.length blob =
+      Just $ VConstant (Blob $ BS.concat
+        [BS.take (fromIntegral offset) blob,
+         piece,
+         BS.drop (fromIntegral offset + fromIntegral length) blob])
+p_blobReplaceDataPiece _ = Nothing
 
 p_cantreduce _ = Nothing
 
