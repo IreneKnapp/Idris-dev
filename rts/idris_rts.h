@@ -12,7 +12,7 @@
 // Closures
 
 typedef enum {
-    CON, INT, BIGINT, FLOAT, STRING, BLOB, UNIT, PTR, FWD
+    CON, INT, BIGINT, FLOAT, STRING, BYTEARRAY, UNIT, PTR, FWD
 } ClosureType;
 
 typedef struct Closure *VAL;
@@ -32,7 +32,7 @@ typedef struct Closure {
         double f;
         char* str;
         void* ptr;
-	void* blob;
+        void* byteArray;
     } info;
 } Closure;
 

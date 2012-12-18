@@ -51,10 +51,10 @@ data PrimFn = LPlus | LMinus | LTimes | LDiv | LMod
             | LStrHead | LStrTail | LStrCons | LStrIndex | LStrRev
             | LStdIn | LStdOut | LStdErr
 
-	    | LEmptyBlob
-	    | LBlobLength
-	    | LBlobGetByte | LBlobReplaceByte
-	    | LBlobGetDataPiece | LBlobReplaceDataPiece
+	    | LEmptyByteArray
+	    | LByteArrayLength
+	    | LByteArrayGetByte | LByteArrayReplaceByte
+	    | LByteArrayGetDataPiece | LByteArrayReplaceDataPiece
 
             | LFork  
             | LPar -- evaluate argument anywhere, possibly on another
@@ -68,7 +68,7 @@ data PrimFn = LPlus | LMinus | LTimes | LDiv | LMod
 data FLang = LANG_C
   deriving (Show, Eq)
 
-data FType = FInt | FChar | FString | FBlob | FUnit | FPtr | FDouble | FAny
+data FType = FInt | FChar | FString | FByteArray | FUnit | FPtr | FDouble | FAny
   deriving (Show, Eq)
 
 data LAlt = LConCase Int Name [Name] LExp

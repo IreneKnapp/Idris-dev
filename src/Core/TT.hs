@@ -263,8 +263,8 @@ data Const = I Int | BI Integer | Fl Double | Ch Char | Str String
            | W8 Word8 | W16 Word16
            | W8Type   | W16Type   
 
-	   | Blob BS.ByteString
-	   | BlobType
+	   | ByteArray BS.ByteString
+	   | ByteArrayType
 
            | PtrType | VoidType | Forgot
   deriving (Eq, Ord)
