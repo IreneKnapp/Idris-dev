@@ -3,17 +3,17 @@
 #include "idris_gmp.h"
 
 VAL idris_emptyByteArray(VM *vm) {
-    Closure* cl = allocate(vm, sizeof(Closure) + sizeof(uint8_t), 0);
+    Closure* cl = allocate(vm, sizeof(Closure) + sizeof(uint64_t), 0);
     SETTY(cl, BYTEARRAY);
     cl->info.byteArray = (char*)cl + sizeof(Closure);
     
-    *(uint8_t *) cl->info.byteArray = 0;
+    *(uint64_t *) cl->info.byteArray = 0;
 
     return cl;
 }
 
 VAL idris_byteArrayLength(VM *vm, VAL byteArray) {
-    return MKBIGI(*((uint8_t *) ((char *)byteArray + sizeof(Closure))));
+    return MKBIGI(*((uint64_t *) ((char *)byteArray + sizeof(Closure))));
 }
 
 VAL idris_byteArrayGetByte(VM *vm, VAL byteArray, VAL offset) {
@@ -21,7 +21,7 @@ VAL idris_byteArrayGetByte(VM *vm, VAL byteArray, VAL offset) {
     int offsetInRange = GETINT(idris_bigLt(vm, offset, byteArrayLength));
     if(offsetInRange) {
         uint8_t *buffer = (uint8_t*) (char*)byteArray->info.byteArray
-                          + sizeof(uint8_t);
+                          + sizeof(uint64_t);
         return MKBIGI(buffer[GETINT(offset)]);
     } else {
         fprintf(stderr, "Out-of-range byteArray byte to get.");
@@ -35,15 +35,15 @@ VAL idris_byteArrayReplaceByte(VM *vm, VAL byteArray, VAL offset, VAL byte) {
     if(offsetInRange) {
 		int byteArrayLengthI = GETINT(byteArrayLength);
         Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint8_t) + byteArrayLengthI, 0);
+            (vm, sizeof(Closure) + sizeof(uint64_t) + byteArrayLengthI, 0);
         SETTY(cl, BYTEARRAY);
         cl->info.byteArray = (char*)cl + sizeof(Closure);
 
         uint8_t *source = (uint8_t*)byteArray->info.byteArray;
         uint8_t *destination = (uint8_t*)cl + sizeof(Closure);
-        memcpy(destination, source, sizeof(uint8_t) + byteArrayLengthI);
+        memcpy(destination, source, sizeof(uint64_t) + byteArrayLengthI);
         
-        *(destination + sizeof(uint8_t) + GETINT(offset)) = GETINT(byte);
+        *(destination + sizeof(uint64_t) + GETINT(offset)) = GETINT(byte);
         
         return cl;
     } else {
@@ -59,17 +59,17 @@ VAL idris_byteArrayGetDataPiece(VM *vm, VAL byteArray, VAL offset, VAL length) {
     if(offsetInRange) {
         int pieceLength = GETINT(length);
         Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint8_t) + pieceLength, 0);
+            (vm, sizeof(Closure) + sizeof(uint64_t) + pieceLength, 0);
         SETTY(cl, BYTEARRAY);
         cl->info.byteArray = (char*)cl + sizeof(Closure);
 
-        *((uint8_t *) cl->info.byteArray) = pieceLength;
+        *((uint64_t *) cl->info.byteArray) = pieceLength;
 
         uint8_t *source =
-            (uint8_t*)byteArray->info.byteArray + sizeof(uint8_t)
+            (uint8_t*)byteArray->info.byteArray + sizeof(uint64_t)
             + GETINT(offset);
         uint8_t *destination =
-            (uint8_t*)cl + sizeof(Closure) + sizeof(uint8_t);
+            (uint8_t*)cl + sizeof(Closure) + sizeof(uint64_t);
         memcpy(destination, source, pieceLength);
 
         return cl;
@@ -91,20 +91,20 @@ VAL idris_byteArrayReplaceDataPiece
         int resultLength =
             GETINT(byteArrayLength) - removedLength + replacedLength;
         Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint8_t) + resultLength, 0);
+            (vm, sizeof(Closure) + sizeof(uint64_t) + resultLength, 0);
         SETTY(cl, BYTEARRAY);
         cl->info.byteArray = (char*)cl + sizeof(Closure);
 
-        *((uint8_t *) cl->info.byteArray) = resultLength;
+        *((uint64_t *) cl->info.byteArray) = resultLength;
 
         int offsetI = GETINT(offset);
         
         uint8_t *source1 = (uint8_t*)byteArray + sizeof(Closure)
-            + sizeof(uint8_t) + offsetI;
-        uint8_t *destination1 = (uint8_t*)cl->info.byteArray + sizeof(uint8_t);
+            + sizeof(uint64_t) + offsetI;
+        uint8_t *destination1 = (uint8_t*)cl->info.byteArray + sizeof(uint64_t);
         if(offsetI > 0) memcpy(destination1, source1, offsetI);
         
-        uint8_t *source2 = (uint8_t *) piece->info.byteArray + sizeof(uint8_t);
+        uint8_t *source2 = (uint8_t *) piece->info.byteArray + sizeof(uint64_t);
         uint8_t *destination2 = destination1 + offsetI;
         if(replacedLength > 0) memcpy(destination2, source2, replacedLength);
 
