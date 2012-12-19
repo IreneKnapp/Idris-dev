@@ -5,28 +5,22 @@
 VAL idris_newByteArray(VM *vm, VAL lengthIn) {
     size_t length = GETINT(lengthIn);
     
-    ClosureType* closure = allocate
-        (vm, sizeof(ClosureType) + sizeof(ByteArray), 0);
-    SETTY((Closure *) closure, BYTEARRAY);
+    Closure* closure = allocate(vm, sizeof(Closure) + GETINT(lengthIn), 0);
+    SETTY(closure, BYTEARRAY);
+    closure->info.byteArrayLength = length;
     
-    ByteArray *byteArray = (ByteArray *) (closure + 1);
-    byteArray->storage = allocate(vm, length, 0);
-    byteArray->length = length;
-    
-    return (Closure *) closure;
+    return closure;
 }
 
 VAL idris_byteArrayLength(VM *vm, VAL byteArrayIn) {
-    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
-    return MKBIGI(byteArray->length);
+    return MKBIGI(byteArrayIn->info.byteArrayLength);
 }
 
 VAL idris_byteArrayPeek(VM *vm, VAL byteArrayIn, VAL offsetIn) {
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
-    int offsetInRange = GETINT(idris_bigLt(vm, offsetIn, byteArrayLength));
-    if(offsetInRange) {
-        ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
-        return MKBIGI(byteArray->storage[GETINT(offsetIn)]);
+    size_t offset = GETINT(offsetIn);
+    if((offset >= 0) && (offset < byteArrayIn->info.byteArrayLength)) {
+        uint8_t *storage = (uint8_t *) (byteArrayIn + 1);
+        return MKBIGI(storage[offset]);
     } else {
         fprintf(stderr, "Out-of-range ByteArray peek.");
         exit(-1);
@@ -34,13 +28,10 @@ VAL idris_byteArrayPeek(VM *vm, VAL byteArrayIn, VAL offsetIn) {
 }
 
 void idris_byteArrayPoke(VM *vm, VAL byteArrayIn, VAL offsetIn, VAL byteIn) {
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
-    int offsetInRange = GETINT(idris_bigLt(vm, offsetIn, byteArrayLength));
-    if(offsetInRange) {
-        ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
-        
-        byteArray->storage[GETINT(offsetIn)] =
-            GETINT(byteIn);
+    size_t offset = GETINT(offsetIn);
+    if((offset >= 0) && (offset < byteArrayIn->info.byteArrayLength)) {
+        uint8_t *storage = (uint8_t *) (byteArrayIn + 1);
+        byteArray->storage[offset] = GETINT(byteIn);
     } else {
         fprintf(stderr, "Out-of-range ByteArray poke.");
         exit(-1);
@@ -50,16 +41,19 @@ void idris_byteArrayPoke(VM *vm, VAL byteArrayIn, VAL offsetIn, VAL byteIn) {
 void idris_byteArrayZeroPiece
     (VM *vm, VAL byteArrayIn, VAL offsetIn, VAL lengthIn)
 {
-    VAL endIn = idris_bigPlus(vm, offsetIn, lengthIn);
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
-    if(!GETINT(idris_bigLe(vm, endIn, byteArrayLength))) {
+    size_t offset = GETINT(offsetIn);
+    size_t length = GETINT(lengthIn);
+    size_t end = offset + length;
+    if((offset < 0)
+       || (length < 0)
+       || (end >= byteArrayIn->info.byteArrayLength))
+    {
         fprintf(stderr, "Out-of-range ByteArray in zero-piece.");
         exit(-1);
     }
     
-    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
-    
-    bzero(byteArray->storage + GETINT(offsetIn), GETINT(lengthIn));
+    uint8_t *storage = (uint8_t *) (byteArrayIn + 1);
+    bzero(storage + offset, length);
 }
 
 void idris_byteArrayMovePiece
@@ -68,47 +62,49 @@ void idris_byteArrayMovePiece
      VAL sourceByteArrayIn, VAL sourceOffsetIn,
      VAL lengthIn)
 {
-    VAL sourceEndIn = idris_bigPlus(vm, sourceOffsetIn, lengthIn);
-    VAL sourceByteArrayLength = idris_byteArrayLength(vm, sourceByteArrayIn);
-    if(!GETINT(idris_bigLe(vm, sourceEndIn, sourceByteArrayLength))) {
+    size_t length = GETINT(lengthIn);
+    
+    size_t sourceOffset = GETINT(sourceOffsetIn);
+    size_t sourceEnd = sourceOffset + length;
+    if((sourceOffset < 0)
+       || (sourceLength < 0)
+       || (sourceEnd >= sourceByteArrayIn->info.byteArrayLength))
+    {
         fprintf(stderr, "Out-of-range source ByteArray in move-piece.");
         exit(-1);
     }
     
-    VAL destinationEndIn = idris_bigPlus(vm, destinationOffsetIn, lengthIn);
-    VAL destinationByteArrayLength = idris_byteArrayLength
-        (vm, destinationByteArrayIn);
-    if(!GETINT(idris_bigLe(vm, destinationEndIn, destinationByteArrayLength)))
+    size_t destinationOffset = GETINT(destinationOffsetIn);
+    size_t destinationEnd = destinationOffset + length;
+    if((destinationOffset < 0)
+       || (destinationLength < 0)
+       || (destinationEnd >= destinationByteArrayIn->info.byteArrayLength))
     {
         fprintf(stderr, "Out-of-range destination ByteArray in move-piece.");
         exit(-1);
     }
     
-    ByteArray *sourceByteArray =
-        (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
-    uint8_t *source = sourceByteArray->storage + GETINT(sourceOffsetIn);
+    uint8_t *sourceStorage = (uint8_t *) (byteArrayIn + 1);
+    uint8_t *source = source + sourceOffset;
     
-    ByteArray *destinationByteArray =
-        (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
-    uint8_t *destination =
-        destinationByteArray->storage + GETINT(destinationOffsetIn);
+    uint8_t *destinationStorage = (uint8_t *) (byteArrayIn + 1);
+    uint8_t *destination = destination + destinationOffset;
     
     memmove(destination, source, GETINT(lengthIn));
 }
 
 VAL idris_byteArrayCopyForGC(VM *vm, VAL byteArrayIn) {
-    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
+    Closure* resultClosure = allocate
+        (vm, sizeof(Closure) + byteArrayIn->info.byteArrayLength, 1);
+    SETTY(resultClosure, BYTEARRAY);
     
-    ClosureType* resultClosure = allocate
-        (vm, sizeof(ClosureType) + sizeof(ByteArray), 1);
-    SETTY((Closure *) resultClosure, BYTEARRAY);
+    resultClosure->info.byteArrayLength = byteArrayIn->info.byteArrayLength;
     
-    ByteArray *resultByteArray = (ByteArray *) (resultClosure + 1);
-    resultByteArray->storage = allocate(vm, byteArray->length, 1);
-    resultByteArray->length = byteArray->length;
+    uint8_t *storage = (uint8_t *) (byteArrayIn + 1);
+    uint8_t *resultStorage = (uint8_t *) (resultClosure + 1);
     
-    memcpy(resultByteArray->storage, byteArray->storage, byteArray->length);
+    memcpy(resultStorage, storage, byteArrayIn->info.byteArrayLength);
     
-    return (Closure *) resultClosure;
+    return resultClosure;
 }
 

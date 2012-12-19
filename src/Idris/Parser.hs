@@ -1083,6 +1083,7 @@ pConstant = do reserved "Integer";return BIType
         <|> do reserved "Ptr";    return PtrType
         <|> do reserved "Word8";  return W8Type
         <|> do reserved "Word16"; return W16Type
+	<|> do reserved "ByteArray#"; return ByteArrayType
         <|> try (do f <- float;   return $ Fl f)
 --         <|> try (do i <- natural; lchar 'L'; return $ BI i)
         <|> try (do i <- natural; return $ I (fromInteger i))

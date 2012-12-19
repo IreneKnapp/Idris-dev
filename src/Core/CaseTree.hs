@@ -229,6 +229,7 @@ toPat tc tms = evalState (mapM (\x -> toPat' x []) tms) []
     toPat' (Constant BIType)  [] | tc = return $ PCon (UN "Integer") 6 [] 
     toPat' (Constant W8Type)  [] | tc = return $ PCon (UN "Word8") 7 []
     toPat' (Constant W16Type) [] | tc = return $ PCon (UN "Word16") 8 []
+    toPat' (Constant ByteArrayType) [] | tc = return $ PCon (UN "ByteArray#") 9 []
 
     toPat' (P Bound n _)      []   = do ns <- get
                                         if n `elem` ns 

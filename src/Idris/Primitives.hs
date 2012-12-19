@@ -198,8 +198,8 @@ primitives =
     (2, LStrIndex) partial,
    Prim (UN "prim__strRev") (ty [StrType] StrType) 1 (p_strRev)
     (1, LStrRev) total,
-   Prim (UN "prim__zeroedByteArray") (ty [BIType] ByteArrayType) 1
-    (p_cantreduce) (1, LZeroedByteArray) total,
+   Prim (UN "prim__newByteArray") (ty [BIType] ByteArrayType) 1
+    (p_cantreduce) (1, LNewByteArray) total,
    Prim (UN "prim__byteArrayLength") (ty [ByteArrayType] BIType) 1
     (p_cantreduce) (1, LByteArrayLength) total,
    Prim (UN "prim__byteArrayPeek") (ty [ByteArrayType, BIType] W8Type) 2
@@ -207,9 +207,9 @@ primitives =
    Prim (UN "prim__byteArrayPoke")
     (ty [ByteArrayType, BIType, W8Type] VoidType) 3
     (p_cantreduce) (3, LByteArrayPoke) partial,
-   Prim (UN "prim__byteArrayCopy")
-    (ty [ByteArrayType] ByteArrayType) 1
-    (p_cantreduce) (1, LByteArrayCopy) total,
+   Prim (UN "prim__byteArrayZeroPiece")
+    (ty [ByteArrayType, BIType, BIType] VoidType) 3
+    (p_cantreduce) (3, LByteArrayZeroPiece) total,
    Prim (UN "prim__byteArrayMovePiece")
     (ty [ByteArrayType, BIType, ByteArrayType, BIType, BIType] VoidType) 5
     (p_cantreduce) (5, LByteArrayMovePiece) partial,
