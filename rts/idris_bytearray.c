@@ -2,7 +2,7 @@
 #include "idris_bytearray.h"
 #include "idris_gmp.h"
 
-VAL idris_zeroedByteArray(VM *vm, VAL lengthIn) {
+VAL idris_newByteArray(VM *vm, VAL lengthIn) {
     size_t length = GETINT(lengthIn);
     
     ClosureType* closure = allocate
@@ -11,10 +11,7 @@ VAL idris_zeroedByteArray(VM *vm, VAL lengthIn) {
     
     ByteArray *byteArray = (ByteArray *) (closure + 1);
     byteArray->storage = allocate(vm, length, 0);
-    byteArray->offset = 0;
     byteArray->length = length;
-    
-    bzero(byteArray->storage, length);
     
     return (Closure *) closure;
 }
@@ -42,7 +39,7 @@ void idris_byteArrayPoke(VM *vm, VAL byteArrayIn, VAL offsetIn, VAL byteIn) {
     if(offsetInRange) {
         ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
         
-        byteArray->storage[byteArray->offset + GETINT(offsetIn)] =
+        byteArray->storage[GETINT(offsetIn)] =
             GETINT(byteIn);
     } else {
         fprintf(stderr, "Out-of-range ByteArray poke.");
@@ -50,21 +47,19 @@ void idris_byteArrayPoke(VM *vm, VAL byteArrayIn, VAL offsetIn, VAL byteIn) {
     }
 }
 
-VAL idris_byteArrayCopy(VM *vm, VAL byteArrayIn) {
+void idris_byteArrayZeroPiece
+    (VM *vm, VAL byteArrayIn, VAL offsetIn, VAL lengthIn)
+{
+    VAL endIn = idris_bigPlus(vm, offsetIn, lengthIn);
+    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
+    if(!GETINT(idris_bigLe(vm, endIn, byteArrayLength))) {
+        fprintf(stderr, "Out-of-range ByteArray in zero-piece.");
+        exit(-1);
+    }
+    
     ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
     
-    ClosureType* resultClosure = allocate
-        (vm, sizeof(ClosureType) + sizeof(ByteArray), 0);
-    SETTY((Closure *) resultClosure, BYTEARRAY);
-    
-    ByteArray *resultByteArray = (ByteArray *) (resultClosure + 1);
-    resultByteArray->storage = allocate(vm, byteArray->length, 0);
-    resultByteArray->offset = 0;
-    resultByteArray->length = byteArray->length;
-    
-    memcpy(resultByteArray->storage, byteArray->storage, byteArray->length);
-    
-    return (Closure *) resultClosure;
+    bzero(byteArray->storage + GETINT(offsetIn), GETINT(lengthIn));
 }
 
 void idris_byteArrayMovePiece
@@ -91,12 +86,29 @@ void idris_byteArrayMovePiece
     
     ByteArray *sourceByteArray =
         (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
-    uint8_t *source = sourceByteArray->storage + sourceByteArray->offset;
+    uint8_t *source = sourceByteArray->storage + GETINT(sourceOffsetIn);
     
     ByteArray *destinationByteArray =
         (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
     uint8_t *destination =
-        destinationByteArray->storage + destinationByteArray->offset;
+        destinationByteArray->storage + GETINT(destinationOffsetIn);
     
     memmove(destination, source, GETINT(lengthIn));
 }
+
+VAL idris_byteArrayCopyForGC(VM *vm, VAL byteArrayIn) {
+    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
+    
+    ClosureType* resultClosure = allocate
+        (vm, sizeof(ClosureType) + sizeof(ByteArray), 1);
+    SETTY((Closure *) resultClosure, BYTEARRAY);
+    
+    ByteArray *resultByteArray = (ByteArray *) (resultClosure + 1);
+    resultByteArray->storage = allocate(vm, byteArray->length, 1);
+    resultByteArray->length = byteArray->length;
+    
+    memcpy(resultByteArray->storage, byteArray->storage, byteArray->length);
+    
+    return (Closure *) resultClosure;
+}
+

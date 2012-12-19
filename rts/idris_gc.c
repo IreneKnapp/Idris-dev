@@ -1,5 +1,6 @@
 #include "idris_rts.h"
 #include "idris_gc.h"
+#include "idris_bytearray.h"
 #include <assert.h>
 
 VAL copy(VM* vm, VAL x) {
@@ -25,6 +26,9 @@ VAL copy(VM* vm, VAL x) {
         break;
     case BIGINT:
         cl = MKBIGMc(vm, x->info.ptr);
+        break;
+    case BYTEARRAY:
+        cl = idris_byteArrayCopyForGC(vm, x);
         break;
     case PTR:
         cl = MKPTRc(vm, x->info.ptr);
