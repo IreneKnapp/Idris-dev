@@ -322,19 +322,18 @@ doOp v LStdIn [] = v ++ "MKPTR(vm, stdin)"
 doOp v LStdOut [] = v ++ "MKPTR(vm, stdout)"
 doOp v LStdErr [] = v ++ "MKPTR(vm, stderr)"
 
-doOp v LEmptyByteArray [] = v ++ "idris_emptyByteArray(vm)"
+doOp v LZeroedByteArray [x] = v ++ "idris_zeroedByteArray(vm, " ++ creg x ++ ")"
 doOp v LByteArrayLength [x] = v ++ "idris_byteArrayLength(vm, " ++ creg x ++ ")"
-doOp v LByteArrayGetByte [x, y] =
-  v ++ "idris_byteArrayGetByte(vm, " ++ creg x ++ "," ++ creg y ++ ")"
-doOp v LByteArrayReplaceByte [x, y, z] =
-  v ++ "idris_byteArrayReplaceByte(vm, " ++ creg x ++ "," ++ creg y ++ ","
+doOp v LByteArrayPeek [x, y] =
+  v ++ "idris_byteArrayPeek(vm, " ++ creg x ++ "," ++ creg y ++ ")"
+doOp v LByteArrayPoke [x, y, z] =
+  v ++ "idris_byteArrayPoke(vm, " ++ creg x ++ "," ++ creg y ++ ","
   ++ creg z ++ ")"
-doOp v LByteArrayGetDataPiece [x, y, z] =
-  v ++ "idris_byteArrayGetDataPiece(vm, " ++ creg x ++ "," ++ creg y ++ ","
-  ++ creg z ++ ")"
-doOp v LByteArrayReplaceDataPiece [x, y, z, a] =
+doOp v LByteArrayCopy [x] =
+  v ++ "idris_byteArrayCopy(vm, " ++ creg x ++ ")"
+doOp v LByteArrayMovePiece [x, y, z, a, b] =
   v ++ "idris_byteArrayReplaceDataPiece(vm, " ++ creg x ++ "," ++ creg y ++ ","
-  ++ creg z ++ "," ++ creg a ++ ")"
+  ++ creg z ++ "," ++ creg a ++ "," ++ creg b ++ ")"
 
 doOp v LFork [x] = v ++ "MKPTR(vm, vmThread(vm, " ++ cname (MN 0 "EVAL") ++ ", " ++ creg x ++ "))"
 doOp v LPar [x] = v ++ creg x -- "MKPTR(vm, vmThread(vm, " ++ cname (MN 0 "EVAL") ++ ", " ++ creg x ++ "))"

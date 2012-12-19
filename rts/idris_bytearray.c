@@ -2,122 +2,101 @@
 #include "idris_bytearray.h"
 #include "idris_gmp.h"
 
-VAL idris_emptyByteArray(VM *vm) {
-    Closure* cl = allocate(vm, sizeof(Closure) + sizeof(uint64_t), 0);
-    SETTY(cl, BYTEARRAY);
-    cl->info.byteArray = (char*)cl + sizeof(Closure);
+VAL idris_zeroedByteArray(VM *vm, VAL lengthIn) {
+    size_t length = GETINT(lengthIn);
     
-    *(uint64_t *) cl->info.byteArray = 0;
-
-    return cl;
+    ClosureType* closure = allocate
+        (vm, sizeof(ClosureType) + sizeof(ByteArray), 0);
+    SETTY((Closure *) closure, BYTEARRAY);
+    
+    ByteArray *byteArray = (ByteArray *) (closure + 1);
+    byteArray->storage = allocate(vm, length, 0);
+    byteArray->offset = 0;
+    byteArray->length = length;
+    
+    bzero(byteArray->storage, length);
+    
+    return (Closure *) closure;
 }
 
-VAL idris_byteArrayLength(VM *vm, VAL byteArray) {
-    return MKBIGI(*((uint64_t *) ((char *)byteArray + sizeof(Closure))));
+VAL idris_byteArrayLength(VM *vm, VAL byteArrayIn) {
+    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
+    return MKBIGI(byteArray->length);
 }
 
-VAL idris_byteArrayGetByte(VM *vm, VAL byteArray, VAL offset) {
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArray);
-    int offsetInRange = GETINT(idris_bigLt(vm, offset, byteArrayLength));
+VAL idris_byteArrayPeek(VM *vm, VAL byteArrayIn, VAL offsetIn) {
+    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
+    int offsetInRange = GETINT(idris_bigLt(vm, offsetIn, byteArrayLength));
     if(offsetInRange) {
-        uint8_t *buffer = (uint8_t*) (char*)byteArray->info.byteArray
-                          + sizeof(uint64_t);
-        return MKBIGI(buffer[GETINT(offset)]);
+        ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
+        return MKBIGI(byteArray->storage[GETINT(offsetIn)]);
     } else {
-        fprintf(stderr, "Out-of-range byteArray byte to get.");
+        fprintf(stderr, "Out-of-range ByteArray peek.");
         exit(-1);
     }
 }
 
-VAL idris_byteArrayReplaceByte(VM *vm, VAL byteArray, VAL offset, VAL byte) {
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArray);
-    int offsetInRange = GETINT(idris_bigLt(vm, offset, byteArrayLength));
+void idris_byteArrayPoke(VM *vm, VAL byteArrayIn, VAL offsetIn, VAL byteIn) {
+    VAL byteArrayLength = idris_byteArrayLength(vm, byteArrayIn);
+    int offsetInRange = GETINT(idris_bigLt(vm, offsetIn, byteArrayLength));
     if(offsetInRange) {
-		int byteArrayLengthI = GETINT(byteArrayLength);
-        Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint64_t) + byteArrayLengthI, 0);
-        SETTY(cl, BYTEARRAY);
-        cl->info.byteArray = (char*)cl + sizeof(Closure);
-
-        uint8_t *source = (uint8_t*)byteArray->info.byteArray;
-        uint8_t *destination = (uint8_t*)cl + sizeof(Closure);
-        memcpy(destination, source, sizeof(uint64_t) + byteArrayLengthI);
+        ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
         
-        *(destination + sizeof(uint64_t) + GETINT(offset)) = GETINT(byte);
-        
-        return cl;
+        byteArray->storage[byteArray->offset + GETINT(offsetIn)] =
+            GETINT(byteIn);
     } else {
-        fprintf(stderr, "Out-of-range byteArray byte to replace.");
+        fprintf(stderr, "Out-of-range ByteArray poke.");
         exit(-1);
     }
 }
 
-VAL idris_byteArrayGetDataPiece(VM *vm, VAL byteArray, VAL offset, VAL length) {
-    VAL end = idris_bigPlus(vm, offset, length);
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArray);
-    int offsetInRange = GETINT(idris_bigLe(vm, end, byteArrayLength));
-    if(offsetInRange) {
-        int pieceLength = GETINT(length);
-        Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint64_t) + pieceLength, 0);
-        SETTY(cl, BYTEARRAY);
-        cl->info.byteArray = (char*)cl + sizeof(Closure);
-
-        *((uint64_t *) cl->info.byteArray) = pieceLength;
-
-        uint8_t *source =
-            (uint8_t*)byteArray->info.byteArray + sizeof(uint64_t)
-            + GETINT(offset);
-        uint8_t *destination =
-            (uint8_t*)cl + sizeof(Closure) + sizeof(uint64_t);
-        memcpy(destination, source, pieceLength);
-
-        return cl;
-    } else {
-        fprintf(stderr, "Out-of-range byteArray piece to get.");
-        exit(-1);
-    }
+VAL idris_byteArrayCopy(VM *vm, VAL byteArrayIn) {
+    ByteArray *byteArray = (ByteArray *) ((ClosureType *) byteArrayIn + 1);
+    
+    ClosureType* resultClosure = allocate
+        (vm, sizeof(ClosureType) + sizeof(ByteArray), 0);
+    SETTY((Closure *) resultClosure, BYTEARRAY);
+    
+    ByteArray *resultByteArray = (ByteArray *) (resultClosure + 1);
+    resultByteArray->storage = allocate(vm, byteArray->length, 0);
+    resultByteArray->offset = 0;
+    resultByteArray->length = byteArray->length;
+    
+    memcpy(resultByteArray->storage, byteArray->storage, byteArray->length);
+    
+    return (Closure *) resultClosure;
 }
 
-VAL idris_byteArrayReplaceDataPiece
-  (VM *vm, VAL byteArray, VAL offset, VAL length, VAL piece)
+void idris_byteArrayMovePiece
+    (VM *vm,
+     VAL destinationByteArrayIn, VAL destinationOffsetIn,
+     VAL sourceByteArrayIn, VAL sourceOffsetIn,
+     VAL lengthIn)
 {
-    VAL end = idris_bigPlus(vm, offset, length);
-    VAL byteArrayLength = idris_byteArrayLength(vm, byteArray);
-    int offsetInRange = GETINT(idris_bigLe(vm, end, byteArrayLength));
-    if(offsetInRange) {
-        int removedLength = GETINT(length);
-        int replacedLength = GETINT(idris_byteArrayLength(vm, piece));
-        int resultLength =
-            GETINT(byteArrayLength) - removedLength + replacedLength;
-        Closure* cl = allocate
-            (vm, sizeof(Closure) + sizeof(uint64_t) + resultLength, 0);
-        SETTY(cl, BYTEARRAY);
-        cl->info.byteArray = (char*)cl + sizeof(Closure);
-
-        *((uint64_t *) cl->info.byteArray) = resultLength;
-
-        int offsetI = GETINT(offset);
-        
-        uint8_t *source1 = (uint8_t*)byteArray + sizeof(Closure)
-            + sizeof(uint64_t) + offsetI;
-        uint8_t *destination1 = (uint8_t*)cl->info.byteArray + sizeof(uint64_t);
-        if(offsetI > 0) memcpy(destination1, source1, offsetI);
-        
-        uint8_t *source2 = (uint8_t *) piece->info.byteArray + sizeof(uint64_t);
-        uint8_t *destination2 = destination1 + offsetI;
-        if(replacedLength > 0) memcpy(destination2, source2, replacedLength);
-
-        uint8_t *source3 = source1 + removedLength;
-        uint8_t *destination3 = destination2 + replacedLength;
-
-        int tailLength = GETINT(byteArrayLength) - GETINT(end);
-        if(tailLength > 0) memcpy(destination3, source3, tailLength);
-
-        return cl;
-    } else {
-        fprintf(stderr, "Out-of-range byteArray piece to replace.");
+    VAL sourceEndIn = idris_bigPlus(vm, sourceOffsetIn, lengthIn);
+    VAL sourceByteArrayLength = idris_byteArrayLength(vm, sourceByteArrayIn);
+    if(!GETINT(idris_bigLe(vm, sourceEndIn, sourceByteArrayLength))) {
+        fprintf(stderr, "Out-of-range source ByteArray in move-piece.");
         exit(-1);
     }
+    
+    VAL destinationEndIn = idris_bigPlus(vm, destinationOffsetIn, lengthIn);
+    VAL destinationByteArrayLength = idris_byteArrayLength
+        (vm, destinationByteArrayIn);
+    if(!GETINT(idris_bigLe(vm, destinationEndIn, destinationByteArrayLength)))
+    {
+        fprintf(stderr, "Out-of-range destination ByteArray in move-piece.");
+        exit(-1);
+    }
+    
+    ByteArray *sourceByteArray =
+        (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
+    uint8_t *source = sourceByteArray->storage + sourceByteArray->offset;
+    
+    ByteArray *destinationByteArray =
+        (ByteArray *) ((ClosureType *) sourceByteArrayIn + 1);
+    uint8_t *destination =
+        destinationByteArray->storage + destinationByteArray->offset;
+    
+    memmove(destination, source, GETINT(lengthIn));
 }
-

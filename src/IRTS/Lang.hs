@@ -51,10 +51,10 @@ data PrimFn = LPlus | LMinus | LTimes | LDiv | LMod
             | LStrHead | LStrTail | LStrCons | LStrIndex | LStrRev
             | LStdIn | LStdOut | LStdErr
 
-	    | LEmptyByteArray
-	    | LByteArrayLength
-	    | LByteArrayGetByte | LByteArrayReplaceByte
-	    | LByteArrayGetDataPiece | LByteArrayReplaceDataPiece
+            | LZeroedByteArray
+            | LByteArrayLength
+            | LByteArrayPeek | LByteArrayPoke
+            | LByteArrayCopy | LByteArrayMovePiece
 
             | LFork  
             | LPar -- evaluate argument anywhere, possibly on another

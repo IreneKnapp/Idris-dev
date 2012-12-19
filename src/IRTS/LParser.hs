@@ -166,7 +166,7 @@ pLang = do reserved "C"; return LANG_C
 pType = do reserved "Int"; return FInt
     <|> do reserved "Float"; return FDouble
     <|> do reserved "String"; return FString
-    <|> do reserved "ByteArray"; return FByteArray
+    <|> do reserved "ByteArray#"; return FByteArray
     <|> do reserved "Unit"; return FUnit
     <|> do reserved "Ptr"; return FPtr
     <|> do reserved "Any"; return FAny

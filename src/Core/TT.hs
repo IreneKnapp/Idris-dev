@@ -263,8 +263,8 @@ data Const = I Int | BI Integer | Fl Double | Ch Char | Str String
            | W8 Word8 | W16 Word16
            | W8Type   | W16Type   
 
-	   | ByteArray BS.ByteString
-	   | ByteArrayType
+           | ByteArray BS.ByteString
+           | ByteArrayType
 
            | PtrType | VoidType | Forgot
   deriving (Eq, Ord)
@@ -281,6 +281,7 @@ instance Pretty Const where
   pretty (Fl f) = text . show $ f
   pretty (Ch c) = text . show $ c
   pretty (Str s) = text s
+  pretty (ByteArray byteString) = text . show $ byteString
   pretty IType = text "Int"
   pretty BIType = text "BigInt"
   pretty FlType = text "Float"
@@ -291,6 +292,7 @@ instance Pretty Const where
   pretty Forgot = text "Forgot"
   pretty W8Type = text "Word8"
   pretty W16Type = text "Word16"
+  pretty ByteArrayType = text "ByteArray#"
 
 data Raw = Var Name
          | RBind Name (Binder Raw) Raw

@@ -22,6 +22,12 @@ typedef struct {
     VAL args[];
 } con;
 
+typedef struct ByteArray {
+    uint8_t *storage;
+    size_t offset;
+    size_t length;
+} ByteArray;
+
 typedef struct Closure {
 // Use top 16 bits of ty for saying which heap value is in
 // Bottom 16 bits for closure type
@@ -32,7 +38,6 @@ typedef struct Closure {
         double f;
         char* str;
         void* ptr;
-        void* byteArray;
     } info;
 } Closure;
 

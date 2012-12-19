@@ -198,21 +198,21 @@ primitives =
     (2, LStrIndex) partial,
    Prim (UN "prim__strRev") (ty [StrType] StrType) 1 (p_strRev)
     (1, LStrRev) total,
-   Prim (UN "prim__emptyByteArray") (ty [] ByteArrayType) 0
-    (p_emptyByteArray) (0, LEmptyByteArray) total,
+   Prim (UN "prim__zeroedByteArray") (ty [BIType] ByteArrayType) 1
+    (p_cantreduce) (1, LZeroedByteArray) total,
    Prim (UN "prim__byteArrayLength") (ty [ByteArrayType] BIType) 1
-    (p_byteArrayLength) (1, LByteArrayLength) total,
-   Prim (UN "prim__byteArrayGetByte") (ty [ByteArrayType, BIType] W8Type) 2
-    (p_byteArrayGetByte) (2, LByteArrayGetByte) partial,
-   Prim (UN "prim__byteArrayReplaceByte")
-    (ty [ByteArrayType, BIType, W8Type] ByteArrayType) 3
-    (p_byteArrayReplaceByte) (3, LByteArrayReplaceByte) partial,
-   Prim (UN "prim__byteArrayGetDataPiece")
-    (ty [ByteArrayType, BIType, BIType] W8Type) 3
-    (p_byteArrayGetDataPiece) (3, LByteArrayGetDataPiece) partial,
-   Prim (UN "prim__byteArrayReplaceDataPiece")
-    (ty [ByteArrayType, BIType, BIType, ByteArrayType] ByteArrayType) 4
-    (p_byteArrayReplaceDataPiece) (4, LByteArrayReplaceDataPiece) partial,
+    (p_cantreduce) (1, LByteArrayLength) total,
+   Prim (UN "prim__byteArrayPeek") (ty [ByteArrayType, BIType] W8Type) 2
+    (p_cantreduce) (2, LByteArrayPeek) partial,
+   Prim (UN "prim__byteArrayPoke")
+    (ty [ByteArrayType, BIType, W8Type] VoidType) 3
+    (p_cantreduce) (3, LByteArrayPoke) partial,
+   Prim (UN "prim__byteArrayCopy")
+    (ty [ByteArrayType] ByteArrayType) 1
+    (p_cantreduce) (1, LByteArrayCopy) total,
+   Prim (UN "prim__byteArrayMovePiece")
+    (ty [ByteArrayType, BIType, ByteArrayType, BIType, BIType] VoidType) 5
+    (p_cantreduce) (5, LByteArrayMovePiece) partial,
    Prim (UN "prim__readString") (ty [PtrType] StrType) 1 (p_cantreduce)
      (1, LReadStr) partial,
    Prim (UN "prim__vm") (ty [] PtrType) 0 (p_cantreduce)
@@ -338,44 +338,6 @@ p_strCons [VConstant (Ch x), VConstant (Str xs)] = Just $ VConstant (Str (x:xs))
 p_strCons _ = Nothing
 p_strRev [VConstant (Str xs)] = Just $ VConstant (Str (reverse xs))
 p_strRev _ = Nothing
-
-p_emptyByteArray [] = Just $ VConstant (ByteArray BS.empty)
-p_emptyByteArray _ = Nothing
-p_byteArrayLength
-   [VConstant (ByteArray byteArray)] =
-   Just $ VConstant (BI $ fromIntegral $ BS.length byteArray)
-p_byteArrayLength _ = Nothing
-p_byteArrayGetByte
-   [VConstant (ByteArray byteArray),
-    VConstant (BI offset)] =
-   Just $ VConstant (W8 $ BS.index byteArray $ fromIntegral offset)
-p_byteArrayGetByte _ = Nothing
-p_byteArrayReplaceByte
-   [VConstant (ByteArray byteArray),
-    VConstant (BI offset),
-	VConstant (W8 byte)]
-   | fromIntegral offset < BS.length byteArray =
-      Just $ VConstant (W8 $ BS.index byteArray $ fromIntegral offset)
-p_byteArrayReplaceByte _ = Nothing
-p_byteArrayGetDataPiece
-   [VConstant (ByteArray byteArray),
-    VConstant (BI offset),
-	VConstant (BI length)]
-   | fromIntegral offset + fromIntegral length <= BS.length byteArray =
-      Just $ VConstant (ByteArray $ BS.take (fromIntegral length)
-				       $ BS.drop (fromIntegral offset) byteArray)
-p_byteArrayGetDataPiece _ = Nothing
-p_byteArrayReplaceDataPiece
-   [VConstant (ByteArray byteArray),
-    VConstant (BI offset),
-	VConstant (BI length),
-	VConstant (ByteArray piece)]
-   | fromIntegral offset + fromIntegral length <= BS.length byteArray =
-      Just $ VConstant (ByteArray $ BS.concat
-        [BS.take (fromIntegral offset) byteArray,
-         piece,
-         BS.drop (fromIntegral offset + fromIntegral length) byteArray])
-p_byteArrayReplaceDataPiece _ = Nothing
 
 p_cantreduce _ = Nothing
 
