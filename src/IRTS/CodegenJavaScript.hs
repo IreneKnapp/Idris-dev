@@ -1,4 +1,6 @@
-module IRTS.CodegenJavaScript (codegenJavaScript ) where
+{-# LANGUAGE PatternGuards #-}
+
+module IRTS.CodegenJavaScript (codegenJavaScript) where
 
 import Idris.AbsSyntax
 import IRTS.Bytecode
@@ -20,40 +22,110 @@ codegenJavaScript
   -> IO ()
 codegenJavaScript definitions filename outputType = do
   let body = concat $ map (translateDeclaration . snd) definitions
-      output = concat [header, body, footer]
+      output = concat [header "Main", body, footer]
   writeFile filename output
 
 
-header :: String
-header =
-  concat $ map (\line -> line ++ "\n")
-    ["define(function(require) {",
+header :: String -> String
+header modname =
+  concatMap (++ "\n")
+    ["var " ++ modname ++ " = (function(require) {",
      "var m = {};"]
 
 
 footer :: String
 footer =
-  concat $ map (\line -> line ++ "\n")
+  concatMap (++ "\n")
     ["return m;",
-     "});"]
-
+     "})();\n\nMain[\'Main.main\']();"]
 
 translateName :: Name -> String
 translateName = show
 
+translateConstant :: Const -> String
+translateConstant (I i)   = show i
+translateConstant (BI i)  = show i
+translateConstant (Fl f)  = show f
+translateConstant (Ch c)  = show c
+translateConstant (Str s) = show s
+
+translateFunParameter params =
+  intercalate "," $ map translateVariableName vars
+  where
+    vars = map Loc [0..(length params)]
 
 translateDeclaration :: SDecl -> String
-translateDeclaration (SFun name parameterNames stackSize body) =
-  concat ["m[\"", translateName name, "\"] = function(s) { ",
-          translateExpression body, " ",
-          intercalate " " $ take (length parameterNames) $ repeat "s.pop();",
-          " };\n"]
+translateDeclaration (SFun name params stackSize body) =
+     "m[\'"
+  ++ translateName name
+  ++ "\'] = function("
+  ++ translateFunParameter params
+  ++ "){return "
+  ++ translateExpression body
+  ++ "}\n"
 
+translateVariableName :: LVar -> String
+translateVariableName (Loc i) =
+  "__var_" ++ show i
 
 translateExpression :: SExp -> String
 translateExpression (SLet name value body) =
-  intercalate " "
-    $ [translateExpression value,
-       translateExpression body,
-       "s.pop();", "s.pop();"]
-translateExpression _ = "..."
+     "(function("
+  ++ translateVariableName name
+  ++ "){return "
+  ++ translateExpression body
+  ++ "})("
+  ++ translateExpression value
+  ++ ")"
+
+translateExpression (SConst cst) =
+  translateConstant cst
+
+translateExpression (SV var) =
+  translateVariableName var
+
+translateExpression (SApp tc name vars) =
+     "m[\'"
+  ++ show name
+  ++ "\']("
+  ++ concatMap translateVariableName vars
+  ++ ")"
+
+translateExpression (SOp op vars)
+  | LBMinus     <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "-" lhs rhs
+  | LBPlus      <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "+" lhs rhs
+  where
+    translateBinaryOp :: String -> LVar -> LVar -> String
+    translateBinaryOp f lhs rhs =
+         translateVariableName lhs
+      ++ f
+      ++ translateVariableName rhs
+
+translateExpression (SError msg) =
+  "(function(){throw \'" ++ msg ++ "\';})();"
+
+translateExpression (SForeign _ _ "putStr" [(FString, var)]) =
+  "console.log(" ++ translateVariableName var ++ ");"
+
+translateExpression (SChkCase var cases) =
+     "(function(e){"
+  ++ "switch(e){"
+  ++ concatMap translateCases cases
+  ++ "}})("
+  ++ translateVariableName var
+  ++ ")"
+  where translateCases :: SAlt -> String
+        translateCases (SDefaultCase e) =
+             "default:return "
+          ++ translateExpression e
+          ++ ";break;"
+        translateCases (SConstCase cst e) =
+             translateConstant cst
+          ++ ":return "
+          ++ translateExpression e
+          ++ ";break;"
+
+translateExpression e = ""
+--  '(' : show e ++ ")"
