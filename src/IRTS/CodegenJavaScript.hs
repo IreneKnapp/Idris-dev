@@ -15,32 +15,42 @@ import Data.Char
 import Data.List
 import System.IO
 
+type NamespaceName = String
+
 codegenJavaScript
   :: [(Name, SDecl)]
   -> FilePath
   -> OutputType
   -> IO ()
 codegenJavaScript definitions filename outputType = do
-  let body = concat $ map (translateDeclaration . snd) definitions
-      output = concat [header "Main", body, footer]
+  let output = createModule "Main" definitions ++ "\nMain.main();"
   writeFile filename output
 
+createModule :: NamespaceName -> [(Name, SDecl)] -> String
+createModule modname definitions =
+  let body = concatMap (translateDeclaration modname . snd) definitions in
+      concat [header modname, body, footer modname]
+  where
+    header :: NamespaceName -> String
+    header modname =
+      concatMap (++ "\n")
+        [ "var " ++ modname ++ ";"
+        , "(function(" ++ modname ++ "){"
+        ]
 
-header :: String -> String
-header modname =
-  concatMap (++ "\n")
-    ["var " ++ modname ++ " = (function(require) {",
-     "var m = {};"]
-
-
-footer :: String
-footer =
-  concatMap (++ "\n")
-    ["return m;",
-     "})();\n\nMain[\'Main.main\']();"]
+    footer :: NamespaceName -> String
+    footer modname =
+         "})("
+      ++ modname
+      ++ " || ("
+      ++ modname
+      ++ " = {})"
+      ++ ");"
 
 translateName :: Name -> String
-translateName = show
+translateName (UN name)   = name
+translateName (NS name _) = translateName name
+translateName (MN _ name) = name
 
 translateConstant :: Const -> String
 translateConstant (I i)   = show i
@@ -54,44 +64,51 @@ translateFunParameter params =
   where
     vars = map Loc [0..(length params)]
 
-translateDeclaration :: SDecl -> String
-translateDeclaration (SFun name params stackSize body) =
-     "m[\'"
+translateDeclaration :: NamespaceName -> SDecl -> String
+translateDeclaration modname (SFun name params stackSize body) =
+     modname
+  ++ "."
   ++ translateName name
-  ++ "\'] = function("
+  ++ " = function("
   ++ translateFunParameter params
   ++ "){return "
-  ++ translateExpression body
-  ++ "}\n"
+  ++ translateExpression modname body
+  ++ "};\n"
 
 translateVariableName :: LVar -> String
 translateVariableName (Loc i) =
   "__var_" ++ show i
 
-translateExpression :: SExp -> String
-translateExpression (SLet name value body) =
+translateExpression :: NamespaceName -> SExp -> String
+translateExpression modname (SLet name value body) =
      "(function("
   ++ translateVariableName name
   ++ "){return "
-  ++ translateExpression body
+  ++ translateExpression modname body
   ++ "})("
-  ++ translateExpression value
+  ++ translateExpression modname value
   ++ ")"
 
-translateExpression (SConst cst) =
+translateExpression _ (SConst cst) =
   translateConstant cst
 
-translateExpression (SV var) =
+translateExpression _ (SV var) =
   translateVariableName var
 
-translateExpression (SApp tc name vars) =
-     "m[\'"
-  ++ show name
-  ++ "\']("
-  ++ concatMap translateVariableName vars
+translateExpression modname (SApp tc name vars) =
+     modname
+  ++ "."
+  ++ resolveName name
+  ++ "("
+  ++ intercalate "," (map translateVariableName vars)
   ++ ")"
+  where
+    resolveName :: Name -> String
+    resolveName (UN name)    = name
+    resolveName (MN _ name)  = name
+    resolveName (NS name ns) = intercalate "." ns ++ ('.' : resolveName name)
 
-translateExpression (SOp op vars)
+translateExpression _ (SOp op vars)
   | LBMinus     <- op
   , (lhs:rhs:_) <- vars = translateBinaryOp "-" lhs rhs
   | LBPlus      <- op
@@ -103,13 +120,13 @@ translateExpression (SOp op vars)
       ++ f
       ++ translateVariableName rhs
 
-translateExpression (SError msg) =
+translateExpression _ (SError msg) =
   "(function(){throw \'" ++ msg ++ "\';})();"
 
-translateExpression (SForeign _ _ "putStr" [(FString, var)]) =
+translateExpression _ (SForeign _ _ "putStr" [(FString, var)]) =
   "console.log(" ++ translateVariableName var ++ ");"
 
-translateExpression (SChkCase var cases) =
+translateExpression modname (SChkCase var cases) =
      "(function(e){"
   ++ "switch(e){"
   ++ concatMap translateCases cases
@@ -119,13 +136,13 @@ translateExpression (SChkCase var cases) =
   where translateCases :: SAlt -> String
         translateCases (SDefaultCase e) =
              "default:return "
-          ++ translateExpression e
+          ++ translateExpression modname e
           ++ ";break;"
         translateCases (SConstCase cst e) =
              translateConstant cst
           ++ ":return "
-          ++ translateExpression e
+          ++ translateExpression modname e
           ++ ";break;"
 
-translateExpression e = ""
---  '(' : show e ++ ")"
+translateExpression _ e = 
+  "(function(){throw 'Not yet implemented: " ++ show e ++ "';})()"
