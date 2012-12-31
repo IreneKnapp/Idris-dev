@@ -23,12 +23,17 @@ codegenJavaScript
   -> OutputType
   -> IO ()
 codegenJavaScript definitions filename outputType = do
-  let output = createModule "Main" definitions ++ "\nMain.main();"
+  let mods = groupBy modGrouper definitions
+  let output = concatMap createModule mods ++ "\nMain.main()"
   writeFile filename output
+  where modGrouper :: (Name, SDecl) -> (Name, SDecl) -> Bool
+        modGrouper (a, _) (b, _) = translateNamespace a == translateNamespace b
 
-createModule :: NamespaceName -> [(Name, SDecl)] -> String
-createModule modname definitions =
-  let body = concatMap (translateDeclaration modname . snd) definitions in
+createModule :: [(Name, SDecl)] -> String
+createModule [] = ""
+createModule definitions =
+  let modname = translateNamespace $ (fst . head) definitions
+      body = concatMap (translateDeclaration modname . snd) definitions in
       concat [header modname, body, footer modname]
   where
     header :: NamespaceName -> String
@@ -47,10 +52,15 @@ createModule modname definitions =
       ++ " = {})"
       ++ ");"
 
+translateNamespace :: Name -> String
+translateNamespace (UN _)    = "__IDR__"
+translateNamespace (NS _ ns) = intercalate "." ns
+translateNamespace (MN _ _)  = "__IDR__"
+
 translateName :: Name -> String
 translateName (UN name)   = name
 translateName (NS name _) = translateName name
-translateName (MN _ name) = name
+translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ name ++ "__"
 
 translateConstant :: Const -> String
 translateConstant (I i)   = show i
@@ -96,17 +106,12 @@ translateExpression _ (SV var) =
   translateVariableName var
 
 translateExpression modname (SApp tc name vars) =
-     modname
+     translateNamespace name
   ++ "."
-  ++ resolveName name
+  ++ translateName name
   ++ "("
   ++ intercalate "," (map translateVariableName vars)
   ++ ")"
-  where
-    resolveName :: Name -> String
-    resolveName (UN name)    = name
-    resolveName (MN _ name)  = name
-    resolveName (NS name ns) = intercalate "." ns ++ ('.' : resolveName name)
 
 translateExpression _ (SOp op vars)
   | LBMinus     <- op
