@@ -114,10 +114,66 @@ translateExpression modname (SApp tc name vars) =
   ++ ")"
 
 translateExpression _ (SOp op vars)
-  | LBMinus     <- op
+  | LPlus       <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "+" lhs rhs
+  | LMinus      <- op
   , (lhs:rhs:_) <- vars = translateBinaryOp "-" lhs rhs
+  | LTimes      <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "*" lhs rhs
+  | LDiv        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "/" lhs rhs
+  | LMod        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "%" lhs rhs
+  | LEq         <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "===" lhs rhs
+  | LLt         <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<" lhs rhs
+  | LLe         <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<=" lhs rhs
+  | LGt         <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">" lhs rhs
+  | LGe         <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">=" lhs rhs
+
+  | LFPlus      <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "+" lhs rhs
+  | LFMinus     <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "-" lhs rhs
+  | LFTimes     <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "*" lhs rhs
+  | LFDiv       <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "/" lhs rhs
+  | LFEq        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "===" lhs rhs
+  | LFLt        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<" lhs rhs
+  | LFLe        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<=" lhs rhs
+  | LFGt        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">" lhs rhs
+  | LFGe        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">=" lhs rhs
+
   | LBPlus      <- op
   , (lhs:rhs:_) <- vars = translateBinaryOp "+" lhs rhs
+  | LBMinus     <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "-" lhs rhs
+  | LBTimes     <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "*" lhs rhs
+  | LBDiv       <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "/" lhs rhs
+  | LBMod       <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "%" lhs rhs
+  | LBEq        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "===" lhs rhs
+  | LBLt        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<" lhs rhs
+  | LBLe        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "<=" lhs rhs
+  | LBGt        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">" lhs rhs
+  | LBGe        <- op
+  , (lhs:rhs:_) <- vars = translateBinaryOp ">=" lhs rhs
   where
     translateBinaryOp :: String -> LVar -> LVar -> String
     translateBinaryOp f lhs rhs =
