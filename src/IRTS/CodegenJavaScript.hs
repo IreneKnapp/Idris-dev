@@ -187,6 +187,12 @@ translateExpression _ (SError msg) =
 translateExpression _ (SForeign _ _ "putStr" [(FString, var)]) =
   "console.log(" ++ translateVariableName var ++ ");"
 
+translateExpression _ (SForeign _ _ fun args) =
+     fun
+  ++ "("
+  ++ intercalate "," (map (translateVariableName . snd) args)
+  ++ ");"
+
 translateExpression modname (SChkCase var cases) =
      "(function(e){"
   ++ "switch(e){"
@@ -205,5 +211,5 @@ translateExpression modname (SChkCase var cases) =
           ++ translateExpression modname e
           ++ ";break;"
 
-translateExpression _ e = 
+translateExpression _ e =
   "(function(){throw 'Not yet implemented: " ++ show e ++ "';})()"
