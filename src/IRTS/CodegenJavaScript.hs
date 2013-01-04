@@ -68,6 +68,7 @@ translateConstant (BI i)  = show i
 translateConstant (Fl f)  = show f
 translateConstant (Ch c)  = show c
 translateConstant (Str s) = show s
+translateConstant c       = "(function(){throw 'Unimplemented Const: " ++ show c ++ "';})();"
 
 translateFunParameter params =
   intercalate "," $ map translateVariableName vars
@@ -210,6 +211,8 @@ translateExpression modname (SChkCase var cases) =
           ++ ":return "
           ++ translateExpression modname e
           ++ ";break;"
+        translateCases c =
+          "(function(){throw 'Unimplemented case: " ++ show c ++ "';})();"
 
 translateExpression _ e =
   "(function(){throw 'Not yet implemented: " ++ show e ++ "';})()"
