@@ -11,11 +11,15 @@ import Core.TT
 import Paths_idris
 import Util.System
 
+import Control.Arrow
 import Data.Char
 import Data.List
 import System.IO
 
 type NamespaceName = String
+
+idrNamespace :: NamespaceName
+idrNamespace = "__IDR__"
 
 codegenJavaScript
   :: [(Name, SDecl)]
@@ -23,18 +27,18 @@ codegenJavaScript
   -> OutputType
   -> IO ()
 codegenJavaScript definitions filename outputType = do
-  let mods = groupBy modGrouper definitions
-  let output = concatMap createModule mods ++ "\nMain.main()"
+  print $ map (translateNamespace . fst) definitions
+  let def = map (first translateNamespace) definitions
+  let output = idrRuntime ++ concatMap (translateModule Nothing) def ++ "\nMain.main()"
   writeFile filename output
-  where modGrouper :: (Name, SDecl) -> (Name, SDecl) -> Bool
-        modGrouper (a, _) (b, _) = translateNamespace a == translateNamespace b
 
-createModule :: [(Name, SDecl)] -> String
-createModule [] = ""
-createModule definitions =
-  let modname = translateNamespace $ (fst . head) definitions
-      body = concatMap (translateDeclaration modname . snd) definitions in
-      concat [header modname, body, footer modname]
+idrRuntime :: String
+idrRuntime =
+  createModule Nothing idrNamespace "__IDR__.IntType = { type: 'IntType' };"
+
+createModule :: Maybe String -> NamespaceName -> String -> String
+createModule toplevel modname body =
+  concat [header modname, body, footer modname]
   where
     header :: NamespaceName -> String
     header modname =
@@ -45,22 +49,46 @@ createModule definitions =
 
     footer :: NamespaceName -> String
     footer modname =
-         "})("
-      ++ modname
+      let m = maybe "" (++ ".") toplevel ++ modname in
+         "\n})("
+      ++ m
       ++ " || ("
-      ++ modname
+      ++ m
       ++ " = {})"
-      ++ ");"
+      ++ ");\n\n"
 
-translateNamespace :: Name -> String
-translateNamespace (UN _)    = "__IDR__"
-translateNamespace (NS _ ns) = intercalate "." ns
-translateNamespace (MN _ _)  = "__IDR__"
+translateModule :: Maybe String -> ([String], SDecl) -> String
+translateModule toplevel ([modname], decl) =
+  let body = translateDeclaration modname decl in
+      createModule toplevel modname body
+translateModule toplevel (n:ns, decl) =
+  createModule toplevel n $ translateModule (Just n) (ns, decl)
+
+translateNamespace :: Name -> [String]
+translateNamespace (UN _)    = [idrNamespace]
+translateNamespace (NS _ ns) =
+  map (concatMap replaceBadChars) ns
+  where replaceBadChars :: Char -> String
+        replaceBadChars ' ' = "_"
+        replaceBadChars '@' = "__at__"
+        replaceBadChars '[' = "__OSB__"
+        replaceBadChars ']' = "__CSB__"
+        replaceBadChars '!' = "__bang__"
+        replaceBadChars '#' = "__hash__"
+        replaceBadChars '.' = "__dot__"
+        replaceBadChars c
+          | isDigit c = "__" ++ [c] ++ "__"
+          | otherwise = [c]
+
+translateNamespace (MN _ _)  = [idrNamespace]
 
 translateName :: Name -> String
-translateName (UN name)   = name
+translateName (UN "") = ""
+translateName (UN name@(n:ns))
+  | isLetter n = name
+  | otherwise  = "__" ++ filter isAlphaNum name
 translateName (NS name _) = translateName name
-translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ name ++ "__"
+translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ filter isLetter name
 
 translateConstant :: Const -> String
 translateConstant (I i)   = show i
@@ -68,7 +96,9 @@ translateConstant (BI i)  = show i
 translateConstant (Fl f)  = show f
 translateConstant (Ch c)  = show c
 translateConstant (Str s) = show s
-translateConstant c       = "(function(){throw 'Unimplemented Const: " ++ show c ++ "';})();"
+translateConstant IType   = "__IDR__.IntType"
+translateConstant c       =
+  "(function(){throw 'Unimplemented Const: " ++ show c ++ "';})()"
 
 translateFunParameter params =
   intercalate "," $ map translateVariableName vars
@@ -107,7 +137,7 @@ translateExpression _ (SV var) =
   translateVariableName var
 
 translateExpression modname (SApp tc name vars) =
-     translateNamespace name
+     concat (intersperse "." $ translateNamespace name)
   ++ "."
   ++ translateName name
   ++ "("
@@ -197,22 +227,38 @@ translateExpression _ (SForeign _ _ fun args) =
 translateExpression modname (SChkCase var cases) =
      "(function(e){"
   ++ "switch(e){"
-  ++ concatMap translateCases cases
+  ++ concatMap translateCase cases
   ++ "}})("
   ++ translateVariableName var
   ++ ")"
-  where translateCases :: SAlt -> String
-        translateCases (SDefaultCase e) =
+  where translateCase :: SAlt -> String
+        translateCase (SDefaultCase e) =
              "default:return "
           ++ translateExpression modname e
           ++ ";break;"
-        translateCases (SConstCase cst e) =
-             translateConstant cst
+        translateCase (SConstCase cst e) =
+             "case " ++ translateConstant cst
           ++ ":return "
           ++ translateExpression modname e
           ++ ";break;"
-        translateCases c =
-          "(function(){throw 'Unimplemented case: " ++ show c ++ "';})();"
+        translateCase c = ""
 
+translateExpression modname (SCase var cases) = 
+     "(function(e){"
+  ++ "switch(e.idx){"
+  ++ concatMap translateConCase cases
+  ++ "}})("
+  ++ translateVariableName var
+  ++ ")"
+  where translateConCase :: SAlt -> String
+        translateConCase (SConCase _ i _ _ e) =
+             "case " ++ show i
+          ++ ":return "
+          ++ "" -- translateExpression modname e
+          ++ ";break;"
+
+translateExpression _ (SCon i name vars) = ""
+
+translateExpression _ SNothing = ""
 translateExpression _ e =
-  "(function(){throw 'Not yet implemented: " ++ show e ++ "';})()"
+  "(function(){throw 'Not yet implemented: " ++ filter (/= '\'') (show e) ++ "';})()"
