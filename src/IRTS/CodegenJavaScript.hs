@@ -64,10 +64,9 @@ translateModule toplevel ([modname], decl) =
 translateModule toplevel (n:ns, decl) =
   createModule toplevel n $ translateModule (Just n) (ns, decl)
 
-translateNamespace :: Name -> [String]
-translateNamespace (UN _)    = [idrNamespace]
-translateNamespace (NS _ ns) =
-  map (concatMap replaceBadChars) ns
+translateIdentifier :: String -> String
+translateIdentifier =
+  concatMap replaceBadChars
   where replaceBadChars :: Char -> String
         replaceBadChars ' ' = "_"
         replaceBadChars '@' = "__at__"
@@ -80,15 +79,17 @@ translateNamespace (NS _ ns) =
           | isDigit c = "__" ++ [c] ++ "__"
           | otherwise = [c]
 
+translateNamespace :: Name -> [String]
+translateNamespace (UN _)    = [idrNamespace]
+translateNamespace (NS _ ns) =
+  map translateIdentifier ns
+
 translateNamespace (MN _ _)  = [idrNamespace]
 
 translateName :: Name -> String
-translateName (UN "") = ""
-translateName (UN name@(n:ns))
-  | isLetter n = name
-  | otherwise  = "__" ++ filter isAlphaNum name
+translateName (UN name) = translateIdentifier name
 translateName (NS name _) = translateName name
-translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ filter isLetter name
+translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ translateIdentifier name
 
 translateConstant :: Const -> String
 translateConstant (I i)   = show i
