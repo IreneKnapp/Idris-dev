@@ -27,6 +27,7 @@ codegenJavaScript
   -> OutputType
   -> IO ()
 codegenJavaScript definitions filename outputType = do
+  print $ map snd definitions
   print $ map (translateNamespace . fst) definitions
   let def = map (first translateNamespace) definitions
   let output = idrRuntime ++ concatMap (translateModule Nothing) def ++ "\nMain.main()"
@@ -34,7 +35,11 @@ codegenJavaScript definitions filename outputType = do
 
 idrRuntime :: String
 idrRuntime =
-  createModule Nothing idrNamespace "__IDR__.IntType = { type: 'IntType' };"
+  createModule Nothing idrNamespace $ concat
+    [ "__IDR__.IntType = { type: 'IntType' };"
+    , "__IDR__.Con = function(i,name,vars)"
+    , "{this.i = i;this.name = name;this.vars =  vars;};"
+    ]
 
 createModule :: Maybe String -> NamespaceName -> String -> String
 createModule toplevel modname body =
@@ -68,28 +73,34 @@ translateIdentifier :: String -> String
 translateIdentifier =
   concatMap replaceBadChars
   where replaceBadChars :: Char -> String
-        replaceBadChars ' ' = "_"
-        replaceBadChars '@' = "__at__"
-        replaceBadChars '[' = "__OSB__"
-        replaceBadChars ']' = "__CSB__"
-        replaceBadChars '!' = "__bang__"
-        replaceBadChars '#' = "__hash__"
-        replaceBadChars '.' = "__dot__"
+        replaceBadChars ' '  = "_"
+        replaceBadChars '@'  = "__at__"
+        replaceBadChars '['  = "__OSB__"
+        replaceBadChars ']'  = "__CSB__"
+        replaceBadChars '{'  = "__OB__"
+        replaceBadChars '}'  = "__CB__"
+        replaceBadChars '!'  = "__bang__"
+        replaceBadChars '#'  = "__hash__"
+        replaceBadChars '.'  = "__dot__"
+        replaceBadChars ':'  = "__colon__"
+        replaceBadChars '\'' = "__apo__"
         replaceBadChars c
           | isDigit c = "__" ++ [c] ++ "__"
           | otherwise = [c]
 
 translateNamespace :: Name -> [String]
 translateNamespace (UN _)    = [idrNamespace]
-translateNamespace (NS _ ns) =
-  map translateIdentifier ns
-
+translateNamespace (NS _ ns) = map translateIdentifier ns
 translateNamespace (MN _ _)  = [idrNamespace]
 
 translateName :: Name -> String
-translateName (UN name) = translateIdentifier name
+translateName (UN name)   = translateIdentifier name
 translateName (NS name _) = translateName name
-translateName (MN i name) = "__idr_" ++ show i ++ "_" ++ translateIdentifier name
+translateName (MN i name) = translateIdentifier name ++ show i
+
+translateQualifiedName :: Name -> String
+translateQualifiedName name =
+  intercalate "." (translateNamespace name) ++ "." ++ translateName name
 
 translateConstant :: Const -> String
 translateConstant (I i)   = show i
@@ -101,10 +112,10 @@ translateConstant IType   = "__IDR__.IntType"
 translateConstant c       =
   "(function(){throw 'Unimplemented Const: " ++ show c ++ "';})()"
 
-translateFunParameter params =
+translateParameterlist params =
   intercalate "," $ map translateVariableName vars
   where
-    vars = map Loc [0..(length params)]
+    vars = map (\(MN i _) -> Loc i) params
 
 translateDeclaration :: NamespaceName -> SDecl -> String
 translateDeclaration modname (SFun name params stackSize body) =
@@ -112,10 +123,18 @@ translateDeclaration modname (SFun name params stackSize body) =
   ++ "."
   ++ translateName name
   ++ " = function("
-  ++ translateFunParameter params
-  ++ "){return "
+  ++ translateParameterlist params
+  ++ "){"
+  ++ concatMap allocVar [numP..(numP+stackSize)]
+  ++ "return "
   ++ translateExpression modname body
-  ++ "};\n"
+  ++ ";};\n"
+  where 
+    numP :: Int
+    numP = length params
+
+    allocVar :: Int -> String
+    allocVar n = "var __var_" ++ show n ++ ";"
 
 translateVariableName :: LVar -> String
 translateVariableName (Loc i) =
@@ -206,6 +225,10 @@ translateExpression _ (SOp op vars)
   , (lhs:rhs:_) <- vars = translateBinaryOp ">" lhs rhs
   | LBGe        <- op
   , (lhs:rhs:_) <- vars = translateBinaryOp ">=" lhs rhs
+
+  | LStrConcat  <-op
+  , (lhs:rhs:_) <- vars = translateBinaryOp "+" lhs rhs
+  
   where
     translateBinaryOp :: String -> LVar -> LVar -> String
     translateBinaryOp f lhs rhs =
@@ -227,39 +250,65 @@ translateExpression _ (SForeign _ _ fun args) =
 
 translateExpression modname (SChkCase var cases) =
      "(function(e){"
-  ++ "switch(e){"
-  ++ concatMap translateCase cases
-  ++ "}})("
+  ++ intercalate " else " (map (translateCase modname "e") cases)
+  ++ "})("
   ++ translateVariableName var
   ++ ")"
-  where translateCase :: SAlt -> String
-        translateCase (SDefaultCase e) =
-             "default:return "
-          ++ translateExpression modname e
-          ++ ";break;"
-        translateCase (SConstCase cst e) =
-             "case " ++ translateConstant cst
-          ++ ":return "
-          ++ translateExpression modname e
-          ++ ";break;"
-        translateCase c = ""
 
 translateExpression modname (SCase var cases) = 
      "(function(e){"
-  ++ "switch(e.idx){"
-  ++ concatMap translateConCase cases
-  ++ "}})("
+  ++ intercalate " else " (map (translateCase modname "e") cases)
+  ++ "})("
   ++ translateVariableName var
   ++ ")"
-  where translateConCase :: SAlt -> String
-        translateConCase (SConCase _ i _ _ e) =
-             "case " ++ show i
-          ++ ":return "
-          ++ "" -- translateExpression modname e
-          ++ ";break;"
 
-translateExpression _ (SCon i name vars) = ""
+translateExpression _ (SCon i name vars) =
+  concat [ "new __IDR__.Con("
+         , show i
+         , ","
+         , '\'' : translateQualifiedName name ++ "\',["
+         , intercalate "," $ map translateVariableName vars
+         , "])"
+         ]
 
-translateExpression _ SNothing = ""
+translateExpression modname (SUpdate var e) =
+     "(function(){return ("
+  ++ translateVariableName var
+  ++ " = " ++ translateExpression modname e
+  ++ ");})()"
+
+translateExpression modname (SProj var i) =
+     "(function(){return "
+  ++ translateVariableName var ++ ".vars[" ++ show i ++"];})()"
+
+translateExpression _ SNothing = "null"
+
 translateExpression _ e =
-  "(function(){throw 'Not yet implemented: " ++ filter (/= '\'') (show e) ++ "';})()"
+     "(function(){throw 'Not yet implemented: "
+  ++ filter (/= '\'') (show e)
+  ++ "';})()"
+
+translateCase :: String -> String -> SAlt -> String
+translateCase modname _ (SDefaultCase e) =
+  createIfBlock "true" (translateExpression modname e)
+
+translateCase modname var (SConstCase cst e) =
+  let cond = var ++ " === " ++ translateConstant cst in
+      createIfBlock cond (translateExpression modname e)
+
+translateCase modname var (SConCase _ i name vars e) =
+  let isCon = var ++ " instanceof __IDR__.Con"
+      isI = show i ++ " === " ++ var ++ ".i"
+      params = translateParameterlist vars
+      args = ".apply(this," ++ var ++ ".vars)"
+      f b =
+           "(function("
+        ++ params 
+        ++ "){return " ++ b ++ "})" ++ args
+      cond = intercalate " && " [isCon, isI] in
+      createIfBlock cond $ f (translateExpression modname e)
+
+createIfBlock cond e =
+     "if (" ++ cond ++") {"
+  ++ "return " ++ e
+  ++ ";}"
