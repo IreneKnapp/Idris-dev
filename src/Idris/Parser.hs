@@ -390,7 +390,7 @@ pSyntaxRule syn
          when (length ns /= length (nub ns)) 
             $ fail "Repeated variable in syntax rule"
          lchar '='
-         tm <- pExpr (impOK syn)
+         tm <- pTExpr (impOK syn)
          pTerminator
          return (Rule (mkSimple syms) tm sty)
   where
@@ -738,6 +738,7 @@ pTacticsExpr syn = do
 pSimpleExpr syn = 
         try (do symbol "!["; t <- pTerm; lchar ']'; return $ PQuote t)
         <|> do lchar '?'; x <- pName; return (PMetavar x)
+        <|> do lchar '%'; fc <- pfc; reserved "instance"; return (PResolveTC fc)
         <|> do reserved "refl"; fc <- pfc; 
                tm <- option Placeholder (do lchar '{'; t <- pExpr syn; lchar '}';
                                             return t)
@@ -907,10 +908,11 @@ mkType (NS n s) = NS (mkType n) s
 noImp syn = syn { implicitAllowed = False }
 impOK syn = syn { implicitAllowed = True }
 
-pTSig syn = do lchar ':'
-               cs <- if implicitAllowed syn then pConstList syn else return []
-               sc <- pExpr syn 
-               return (bindList (PPi constraint) (map (\x -> (MN 0 "c", x)) cs) sc)
+pTSig syn = do lchar ':'; pTExpr syn
+
+pTExpr syn = do cs <- if implicitAllowed syn then pConstList syn else return []
+                sc <- pExpr syn 
+                return (bindList (PPi constraint) (map (\x -> (MN 0 "c", x)) cs) sc)
 
 pLambda syn = do lchar '\\'
                  try (do xt <- tyOptDeclList syn
@@ -1504,6 +1506,9 @@ pTactic syn = do reserved "intro"; ns <- sepBy pName (lchar ',')
           <|> do reserved "exact"; t <- pExpr syn;
                  i <- getState
                  return $ Exact (desugar syn i t)
+          <|> do reserved "reflect"; t <- pExpr syn;
+                 i <- getState
+                 return $ ReflectTac (desugar syn i t)
           <|> do reserved "try"; t <- pTactic syn;
                  lchar '|';
                  t1 <- pTactic syn
