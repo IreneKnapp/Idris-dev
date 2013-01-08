@@ -1,10 +1,10 @@
-module Prelude.Monad
+module Data.Simple.Monad
 
 -- Monads and Functors
 
 import Builtins
-import Prelude.List
-import Prelude.Applicative
+import Data.Simple.List
+import Data.Simple.Applicative
 
 %access public
 

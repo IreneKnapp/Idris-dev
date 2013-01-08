@@ -1,10 +1,10 @@
-module Prelude.List
+module Data.Simple.List
 
 import Builtins
 
-import Prelude.Algebra
-import Prelude.Maybe
-import Prelude.Nat
+import Data.Simple.Algebra
+import Data.Simple.Maybe
+import Data.Simple.Nat
 
 %access public
 %default total

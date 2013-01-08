@@ -1,9 +1,9 @@
-module Prelude.Either
+module Data.Simple.Either
 
 import Builtins
 
-import Prelude.Maybe
-import Prelude.List
+import Data.Simple.Maybe
+import Data.Simple.List
 
 data Either a b
   = Left a

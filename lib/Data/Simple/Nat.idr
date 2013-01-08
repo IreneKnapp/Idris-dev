@@ -1,9 +1,9 @@
-module Prelude.Nat
+module Data.Simple.Nat
 
 import Builtins
 
-import Prelude.Algebra
-import Prelude.Cast
+import Data.Simple.Algebra
+import Data.Simple.Cast
 
 %access public
 %default total

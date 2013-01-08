@@ -3,10 +3,10 @@
 -}
 
 
-module Prelude.Complex
+module Data.Simple.Complex
 
 import Builtins
-import Prelude
+import Data.Simple
 
 ------------------------------ Rectangular form 
 

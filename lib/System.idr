@@ -1,6 +1,6 @@
 module System
 
-import Prelude
+import Data.Simple
 
 %default partial
 %access public

@@ -1,4 +1,4 @@
-import Prelude.List
+import Data.Simple.List
 
 %access public
 

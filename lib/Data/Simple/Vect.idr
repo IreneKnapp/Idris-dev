@@ -1,8 +1,8 @@
-module Prelude.Vect
+module Data.Simple.Vect
 
-import Prelude.Fin
-import Prelude.List
-import Prelude.Nat
+import Data.Simple.Fin
+import Data.Simple.List
+import Data.Simple.Nat
 
 %access public
 %default total
@@ -313,13 +313,13 @@ range =
 -- Proofs
 --------------------------------------------------------------------------------
 
-Prelude.Vect.reverse'_lemma_2 = proof {
+Data.Simple.Vect.reverse'_lemma_2 = proof {
     intros;
     rewrite (plusSuccRightSucc m n1);
     exact value;
 }
 
-Prelude.Vect.reverse'_lemma_1 = proof {
+Data.Simple.Vect.reverse'_lemma_1 = proof {
     intros;
     rewrite sym (plusZeroRightNeutral m);
     exact value;

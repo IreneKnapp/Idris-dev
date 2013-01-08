@@ -1,10 +1,10 @@
-module Prelude.Strings
+module Data.Simple.Strings
 
 import Builtins
-import Prelude.List
-import Prelude.Chars
-import Prelude.Cast
-import Prelude.Either
+import Data.Simple.List
+import Data.Simple.Chars
+import Data.Simple.Cast
+import Data.Simple.Either
 
 -- Some more complex string operations
 

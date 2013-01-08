@@ -1,7 +1,7 @@
-module Prelude.Applicative
+module Data.Simple.Applicative
 
 import Builtins
-import Prelude.Functor
+import Data.Simple.Functor
 
 ---- Applicative functors/Idioms
 

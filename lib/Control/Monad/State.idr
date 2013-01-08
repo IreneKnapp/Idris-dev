@@ -1,8 +1,8 @@
 module Control.Monad.State
 
 import Control.Monad.Identity
-import Prelude.Monad
-import Prelude.Functor
+import Data.Simple.Monad
+import Data.Simple.Functor
 
 %access public
 

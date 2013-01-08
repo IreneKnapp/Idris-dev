@@ -1,4 +1,4 @@
-module Prelude.Cast
+module Data.Simple.Cast
 
 class Cast from to where
     cast : from -> to

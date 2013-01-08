@@ -1,4 +1,4 @@
-module Prelude.Algebra
+module Data.Simple.Algebra
 
 import Builtins
 

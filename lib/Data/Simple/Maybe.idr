@@ -1,4 +1,4 @@
-module Prelude.Maybe
+module Data.Simple.Maybe
 
 import Builtins
 

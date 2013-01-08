@@ -1,12 +1,13 @@
 package base
 
 opts = "--noprelude --total"
-modules = Builtins, Prelude, IO, System,
+modules = Builtins, Prelude, IO, System, Data.Simple,
 
-          Prelude.Algebra, Prelude.Cast, Prelude.Nat, Prelude.Fin,
-          Prelude.List, Prelude.Maybe, Prelude.Monad, Prelude.Applicative,
-          Prelude.Either, Prelude.Vect, Prelude.Strings, Prelude.Chars, 
-          Prelude.Heap, Prelude.Complex, Prelude.Functor,
+          Data.Simple.Algebra, Data.Simple.Cast, Data.Simple.Nat,
+          Data.Simple.Fin, Data.Simple.List, Data.Simple.Maybe,
+          Data.Simple.Monad, Data.Simple.Applicative, Data.Simple.Either,
+          Data.Simple.Vect, Data.Simple.Strings, Data.Simple.Chars, 
+          Data.Simple.Heap, Data.Simple.Complex, Data.Simple.Functor,
 
           Network.Cgi,
           Debug.Trace,

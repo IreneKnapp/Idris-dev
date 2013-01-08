@@ -1,8 +1,8 @@
 module Control.Monad.Identity
 
-import Prelude.Functor
-import Prelude.Applicative
-import Prelude.Monad 
+import Data.Simple.Functor
+import Data.Simple.Applicative
+import Data.Simple.Monad 
 
 public record Identity : Type -> Type where
     Id : (runIdentity : a) -> Identity a

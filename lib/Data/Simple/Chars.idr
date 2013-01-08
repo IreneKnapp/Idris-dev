@@ -1,4 +1,4 @@
-module Prelude.Char
+module Data.Simple.Char
 
 import Builtins
 

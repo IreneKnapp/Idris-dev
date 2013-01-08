@@ -1,7 +1,7 @@
-module Prelude.Fin
+module Data.Simple.Fin
 
-import Prelude.Nat
-import Prelude.Either
+import Data.Simple.Nat
+import Data.Simple.Either
 
 data Fin : Nat -> Type where
     fO : Fin (S k)
