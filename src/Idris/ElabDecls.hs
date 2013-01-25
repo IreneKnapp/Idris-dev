@@ -298,8 +298,9 @@ elabCon info syn tn codata (doc, n, t_in, fc)
 elabClauses :: ElabInfo -> FC -> FnOpts -> Name -> [PClause] -> Idris ()
 elabClauses info fc opts n_in cs = let n = liftname info n_in in  
       do ctxt <- getContext
-         -- Check n actually exists
+         -- Check n actually exists, with no definition yet
          let tys = lookupTy Nothing n ctxt
+         checkUndefined n ctxt
          unless (length tys > 1) $ do
            fty <- case tys of
               [] -> -- TODO: turn into a CAF if there's no arguments
@@ -421,6 +422,11 @@ elabClauses info fc opts n_in cs = let n = liftname info n_in in
                [] -> return ()
            return ()
   where
+    checkUndefined n ctxt = case lookupDef Nothing n ctxt of
+                                 [] -> return ()
+                                 [TyDecl _ _] -> return ()
+                                 _ -> tclift $ tfail (At fc (AlreadyDefined n))
+
     debind (Right (x, y)) = let (vs, x') = depat [] x 
                                 (_, y') = depat [] y in
                                 (vs, x', y')
@@ -434,6 +440,7 @@ elabClauses info fc opts n_in cs = let n = liftname info n_in in
 
     simpl rt ctxt (Right (x, y)) = Right (normalise ctxt [] x,
                                           simplify ctxt rt [] y)
+--     simpl rt ctxt (Right (x, y)) = Right (x, y)
     simpl rt ctxt t = t
 
     sameLength ((_, x, _) : xs) 
@@ -455,9 +462,9 @@ elabVal info aspat tm_in
         --    * elaboration as a function a -> b
         
         ((tm', defer, is), _) <- 
-            tctry (elaborate ctxt (MN 0 "val") (TType (UVal 0)) []                         
-                       (build i info aspat (MN 0 "val") tm))
-                  (elaborate ctxt (MN 0 "val") infP []
+--             tctry (elaborate ctxt (MN 0 "val") (TType (UVal 0)) []                         
+--                        (build i info aspat (MN 0 "val") tm))
+                tclift (elaborate ctxt (MN 0 "val") infP []
                         (build i info aspat (MN 0 "val") (infTerm tm)))
         logLvl 3 ("Value: " ++ show tm')
         recheckC (FC "(input)" 0) [] tm'
@@ -559,7 +566,7 @@ elabClause info tcgen (cnum, PClause fc fname lhs_in withs rhs_in whereblock)
         logLvl 6 $ " ==> " ++ show crhsty ++ "   against   " ++ show clhsty
         case  converts ctxt [] clhsty crhsty of
             OK _ -> return ()
-            Error _ -> ierror (At fc (CantUnify False clhsty crhsty (Msg "") [] 0))
+            Error e -> ierror (At fc (CantUnify False clhsty crhsty e [] 0))
         i <- get
         checkInferred fc (delab' i crhs True) rhs
         return $ Right (clhs, crhs)
@@ -787,7 +794,7 @@ elabClass info syn doc fc constraints tn ps ds
     pibind [] x = x
     pibind ((n, ty): ns) x = PPi expl n ty (pibind ns x) 
 
-    mdec (UN n) = (UN ('!':n))
+    mdec (UN n) = UN ('!':n)
     mdec (NS x n) = NS (mdec x) n
     mdec x = x
 
